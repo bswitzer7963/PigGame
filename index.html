@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pig</title>
+<style>
+:root {
+  --barn: #8c2b22;
+  --barn-dark: #6a1e18;
+  --barn-deep: #4a1410;
+  --trim: #f4eedf;
+  --plank: #eadfc8;
+  --plank-line: #d3c4a6;
+  --hay: #e2ad3f;
+  --hay-dark: #b9841f;
+  --pasture: #4c6a37;
+  --pasture-dark: #36502a;
+  --ink: #2e2118;
+  --ink-soft: #5d4a3a;
+  --board: #27312c;
+  --chalk: #f1eee4;
+  --chalk-dim: #a9b3aa;
+  --slab: Rockwell, "Rockwell Nova", "Roboto Slab", "Zilla Slab", "Bookman Old Style", Georgia, serif;
+  --hand: "Chalkboard SE", "Chalkboard", "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+html { background: var(--barn-dark); }
+body {
+  font-family: var(--slab);
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.45;
+  /* barn wall: vertical boards with a dark gap between each */
+  background:
+    repeating-linear-gradient(90deg, rgba(0,0,0,0) 0 92px, rgba(0,0,0,.28) 92px 95px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 31px, rgba(0,0,0,.03) 31px 47px),
+    linear-gradient(180deg, var(--barn) 0%, var(--barn-dark) 100%);
+  background-attachment: fixed;
+}
+button, input, select { font: inherit; color: inherit; }
+main { max-width: 1120px; margin: 0 auto; padding: 28px 20px 60px; }
+h1, h2, h3 { margin: 0; line-height: 1.1; }
+
+/* whitewashed plank panel */
+.panel {
+  background:
+    repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 54px, var(--plank-line) 54px 56px),
+    var(--plank);
+  border: 4px solid var(--ink);
+  border-radius: 5px;
+  box-shadow: 0 6px 0 var(--barn-deep);
+  padding: 24px 26px;
+}
+.panel + .panel { margin-top: 22px; }
+
+.topbar { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+.topbar h2 { color: var(--trim); font-size: 34px; flex: 1; text-shadow: 0 3px 0 var(--barn-deep); }
+.back {
+  background: var(--trim); border: 3px solid var(--ink); border-radius: 4px;
+  padding: 8px 16px; cursor: pointer; font-weight: 700;
+}
+
+.btn {
+  border: 3px solid var(--ink); border-radius: 5px; padding: 12px 22px; cursor: pointer;
+  font-weight: 700; font-size: 20px; background: var(--hay); box-shadow: 0 4px 0 var(--ink);
+}
+.btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.btn.go { background: var(--pasture); color: var(--trim); }
+.btn.plain { background: var(--trim); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.small { font-size: 16px; padding: 7px 13px; box-shadow: 0 3px 0 var(--ink); }
+:focus-visible { outline: 4px solid #1f6fd1; outline-offset: 2px; }
+
+/* ---------- home ---------- */
+.door {
+  position: relative; border: 14px solid var(--trim); border-radius: 4px; padding: 44px 30px 40px;
+  text-align: center; color: var(--trim); overflow: hidden;
+  background: linear-gradient(180deg, rgba(0,0,0,.12), rgba(0,0,0,.28));
+  box-shadow: 0 8px 0 var(--barn-deep);
+}
+/* the X brace of a barn door, drawn behind the lettering */
+.door::before, .door::after {
+  content: ""; position: absolute; left: -10%; right: -10%; top: 50%; height: 14px;
+  background: var(--trim); opacity: .16; transform-origin: center;
+}
+.door::before { transform: rotate(18deg); }
+.door::after { transform: rotate(-18deg); }
+.door > * { position: relative; z-index: 1; }
+.door h1 { font-size: clamp(90px, 17vw, 190px); letter-spacing: .02em; text-shadow: 0 7px 0 var(--barn-deep); }
+.door p { font-family: var(--hand); font-size: clamp(20px, 2.6vw, 28px); margin: 6px auto 0; max-width: 30em; }
+.signs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 26px; }
+.sign {
+  text-align: left; cursor: pointer; padding: 20px 24px 22px; border: 4px solid var(--ink); border-radius: 5px;
+  background: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 40px, rgba(0,0,0,.09) 40px 42px), var(--hay);
+  box-shadow: 0 6px 0 var(--barn-deep); position: relative;
+}
+.sign:hover { background-color: #ecbb52; }
+.sign:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--barn-deep); }
+.sign strong { display: block; font-size: 30px; line-height: 1.1; }
+.sign span { display: block; margin-top: 6px; color: var(--ink); font-size: 17px; }
+.sign.map { background-color: var(--trim); }
+.sign.map:hover { background-color: #fff; }
+/* nail heads */
+.sign::before, .sign::after {
+  content: ""; position: absolute; top: 9px; width: 9px; height: 9px; border-radius: 50%; background: var(--ink); opacity: .7;
+}
+.sign::before { left: 9px; } .sign::after { right: 9px; }
+.joinline { margin-top: 22px; text-align: center; color: var(--trim); }
+.joinline button { background: none; border: none; color: var(--trim); text-decoration: underline; cursor: pointer; font-weight: 700; }
+.rules { margin-top: 26px; }
+.rules h3 { font-size: 24px; margin-bottom: 8px; }
+.rules ul { margin: 0; padding-left: 22px; max-width: 46em; }
+.rules li { margin: 4px 0; }
+
+/* ---------- setup ---------- */
+.field { margin-bottom: 20px; }
+.field > label, .field > .label { display: block; font-weight: 700; margin-bottom: 6px; font-size: 20px; }
+.choices { display: flex; flex-wrap: wrap; gap: 10px; }
+.choice { border: 3px solid var(--ink); border-radius: 5px; background: var(--trim); padding: 8px 18px; cursor: pointer; font-weight: 700; }
+.choice[aria-pressed="true"] { background: var(--ink); color: var(--trim); }
+.seatrow { display: grid; grid-template-columns: 34px 1fr 130px 130px 44px; gap: 10px; align-items: center; margin-bottom: 8px; }
+.seatrow .num { font-weight: 700; font-size: 20px; text-align: center; }
+input[type=text], select {
+  width: 100%; border: 3px solid var(--ink); border-radius: 4px; background: #fffaf0; padding: 8px 10px;
+}
+.seatrow .x { border: 3px solid var(--ink); background: var(--trim); border-radius: 4px; cursor: pointer; font-weight: 700; height: 42px; }
+.note { color: var(--ink-soft); font-size: 16px; max-width: 46em; }
+.error { background: #fff; border: 3px solid var(--barn); color: var(--barn-deep); padding: 10px 14px; border-radius: 4px; font-weight: 700; margin: 0 0 16px; }
+
+/* ---------- lobby ---------- */
+.code { font-size: clamp(56px, 12vw, 120px); font-weight: 700; letter-spacing: .12em; line-height: 1; }
+.addr { font-size: clamp(20px, 3.4vw, 34px); font-weight: 700; word-break: break-all; }
+.joined { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 20px; padding: 0; list-style: none; }
+.joined li { border: 3px solid var(--ink); border-radius: 4px; background: var(--trim); padding: 6px 14px; font-weight: 700; }
+
+/* ---------- game ---------- */
+.table { display: grid; grid-template-columns: minmax(300px, 420px) 1fr; gap: 22px; align-items: start; }
+.chalkboard {
+  background: var(--board); color: var(--chalk); font-family: var(--hand);
+  border: 12px solid #7a5533; border-radius: 4px; box-shadow: 0 6px 0 var(--barn-deep), inset 0 0 40px rgba(0,0,0,.45);
+  padding: 16px 18px 18px;
+}
+.chalkboard h3 { font-family: var(--hand); font-size: 24px; font-weight: 400; display: flex; justify-content: space-between; border-bottom: 2px dashed var(--chalk-dim); padding-bottom: 8px; margin-bottom: 10px; }
+.scorerow { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center; padding: 7px 0 3px; }
+.scorerow .mark { font-size: 20px; visibility: hidden; }
+.scorerow.turn .mark { visibility: visible; }
+.scorerow .who { font-size: 22px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scorerow .who small { color: var(--chalk-dim); font-size: 15px; margin-left: 8px; display: inline-block; text-decoration: none; }
+.scorerow .pts { font-size: 30px; min-width: 2.2em; text-align: right; }
+.scorerow.turn .who { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.scorerow.won .who, .scorerow.won .pts { color: #ffd66b; }
+.track { grid-column: 2 / 4; height: 7px; border: 1px solid var(--chalk-dim); border-radius: 4px; position: relative; overflow: hidden; }
+.track i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--chalk); border-radius: 0 4px 4px 0; transition: width .3s; }
+.track b { position: absolute; top: 0; bottom: 0; background: repeating-linear-gradient(135deg, var(--chalk) 0 2px, transparent 2px 5px); }
+.loglist { margin: 14px 0 0; padding: 10px 0 0; list-style: none; border-top: 2px dashed var(--chalk-dim); font-size: 16px; color: var(--chalk-dim); min-height: 9.5em; }
+.loglist li:first-child { color: var(--chalk); }
+
+.stage { text-align: center; }
+.turnname { font-size: clamp(26px, 3.6vw, 40px); font-weight: 700; }
+.status { font-size: 20px; min-height: 1.5em; margin-top: 2px; color: var(--ink-soft); }
+.dicerow { display: flex; align-items: center; justify-content: center; gap: 34px; margin: 18px 0 16px; flex-wrap: wrap; }
+.die {
+  width: 132px; height: 132px; background: #fffdf6; border: 4px solid var(--ink); border-radius: 20px;
+  display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); padding: 16px; box-shadow: 0 6px 0 var(--ink);
+}
+.die i { width: 22px; height: 22px; border-radius: 50%; background: var(--ink); place-self: center; visibility: hidden; }
+.die.bust { background: #f6d5cf; } .die.bust i { background: var(--barn); }
+.die.tumble { animation: tumble .32s ease-out; }
+@keyframes tumble { 0% { transform: rotate(-28deg) scale(.82); } 60% { transform: rotate(9deg) scale(1.05); } 100% { transform: none; } }
+.pot { text-align: left; }
+.pot .big { font-size: 76px; font-weight: 700; line-height: 1; }
+.pot .lbl { font-size: 18px; color: var(--ink-soft); }
+.actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.actions .btn { font-size: 26px; padding: 14px 40px; min-width: 170px; }
+.waitmsg { font-size: 20px; color: var(--ink-soft); min-height: 1.5em; margin-top: 12px; }
+
+.think { margin-top: 22px; text-align: left; }
+.think h3 { font-size: 22px; margin-bottom: 4px; }
+.think .sub { font-size: 16px; color: var(--ink-soft); margin-bottom: 12px; min-height: 1.4em; }
+.bar { display: grid; grid-template-columns: 84px 1fr 190px; gap: 12px; align-items: center; margin: 8px 0; }
+.bar .name { font-weight: 700; font-size: 20px; white-space: nowrap; }
+.bar .slot { height: 30px; border: 3px solid var(--ink); border-radius: 4px; background: #fffaf0; overflow: hidden; }
+.bar .fill { height: 100%; width: 0; background: var(--ink-soft); transition: width .15s linear; border-radius: 0 2px 2px 0; }
+.bar.picked .fill { background: var(--pasture); }
+.bar.picked .name::after { content: " ✓"; color: var(--pasture-dark); }
+.bar .nums { font-size: 16px; font-variant-numeric: tabular-nums; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 20px; padding-top: 16px; border-top: 3px solid var(--plank-line); }
+.controls .label { font-weight: 700; margin-right: 4px; }
+
+.winner { text-align: center; background: var(--hay); margin-bottom: 22px; }
+.winner h2 { font-size: clamp(34px, 5vw, 58px); }
+.winner p { font-size: 20px; margin: 8px 0 18px; }
+.winner .actions .btn { font-size: 20px; padding: 12px 24px; min-width: 0; }
+[hidden] { display: none !important; }
+
+/* ---------- heatmap ---------- */
+.maps { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.mapcard h3 { font-size: 24px; }
+.mapcard .sub { font-size: 16px; color: var(--ink-soft); margin: 4px 0 12px; min-height: 2.9em; }
+.plot { display: grid; grid-template-columns: 26px 1fr; grid-template-rows: 1fr auto auto; gap: 4px 6px; }
+.plot canvas { width: 100%; aspect-ratio: 1; display: block; border: 3px solid var(--ink); background: #fffaf0; cursor: crosshair; grid-column: 2; grid-row: 1; }
+.plot .ylab { writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; font-size: 16px; grid-column: 1; grid-row: 1; }
+.plot .ticks { grid-column: 2; grid-row: 2; display: flex; justify-content: space-between; font-size: 14px; color: var(--ink-soft); }
+.plot .xlab { grid-column: 2; grid-row: 3; text-align: center; font-size: 16px; }
+.legend { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; font-size: 16px; }
+.ramp { width: 240px; height: 18px; border: 2px solid var(--ink); }
+.swatch { width: 22px; height: 18px; border: 2px solid var(--ink); display: inline-block; vertical-align: -3px; margin-right: 6px; }
+.tip {
+  position: fixed; pointer-events: none; background: var(--ink); color: var(--trim); padding: 7px 11px; border-radius: 4px;
+  font-size: 15px; line-height: 1.35; z-index: 10; max-width: 260px;
+}
+.takeaway { font-size: 20px; max-width: 48em; margin: 0 0 16px; }
+
+@media (max-width: 860px) {
+  .table, .maps, .signs { grid-template-columns: 1fr; }
+  .seatrow { grid-template-columns: 26px 1fr 96px 96px 40px; gap: 6px; }
+  .bar { grid-template-columns: 84px 1fr; } .bar .nums { grid-column: 1 / 3; }
+  main { padding: 16px 12px 40px; }
+  .panel { padding: 18px 16px; }
+  .die { width: 108px; height: 108px; padding: 12px; } .die i { width: 18px; height: 18px; }
+  .pot .big { font-size: 60px; }
+  .loglist { min-height: 0; }
+  .topbar h2 { font-size: 24px; }
+}
+@media (prefers-reduced-motion: reduce) { .die.tumble { animation: none; } .track i, .bar .fill { transition: none; } }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+const app = document.getElementById("app");
+const AI_NAMES = ["Clover", "Biscuit", "Truffle", "Hamlet", "Petunia", "Barley", "Maple", "Rooster"];
+const LEVEL_LABEL = { easy: "Easy", medium: "Medium", hard: "Hard" };
+const SPEED_LABEL = { slow: "Slow", normal: "Normal", fast: "Fast", turbo: "Turbo" };
+const MODE_TITLE = { watch: "Watch the AIs play", vs: "Play against AIs", party: "Party play" };
+const MAX_SEATS = 8;
+
+let info = { join_url: location.origin, levels: { easy: 60, medium: 1000, hard: 8000 } };
+let setup = null;          // what the setup screen is editing
+let session = null;        // { id, token, seat } for the game on screen
+let pollTimer = null;
+let lastEvent = 0;
+let lastRound = 0;
+
+function esc(text) {
+  return String(text).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+async function api(path, body) {
+  const options = body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {};
+  let response;
+  try {
+    response = await fetch(path, options);
+  } catch (e) {
+    throw new Error("Can't reach the Pig server. Check that server.py is still running.");
+  }
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Something went wrong.");
+  return data;
+}
+
+function stopPolling() { clearInterval(pollTimer); pollTimer = null; }
+
+/* ================= home ================= */
+function showHome() {
+  stopPolling();
+  session = null;
+  app.innerHTML = `
+    <div class="door">
+      <h1>Pig</h1>
+      <p>Roll to pile up points. Roll a 1 and you lose the lot.</p>
+    </div>
+    <div class="signs">
+      <button class="sign" data-mode="vs"><strong>Play against AIs</strong><span>You against one to seven computer players.</span></button>
+      <button class="sign" data-mode="party"><strong>Party play</strong><span>Up to eight people on one screen or on their phones.</span></button>
+      <button class="sign" data-mode="watch"><strong>Watch the AIs play</strong><span>Sit back and see what the tree search decides.</span></button>
+      <button class="sign map" data-mode="map"><strong>Strategy map</strong><span>When to hold, for every score, at a glance.</span></button>
+    </div>
+    <p class="joinline">Joining a party from your phone? <button id="joinlink">Enter the game code</button></p>
+    <div class="panel rules">
+      <h3>How to play</h3>
+      <ul>
+        <li>On your turn, roll the die as many times as you like. Each roll adds to your turn total.</li>
+        <li>Hold to bank the turn total into your score and pass the die.</li>
+        <li>Roll a 1 and the turn total is lost. Your banked score is safe, and the die passes on.</li>
+        <li>The first player to bank the target score wins.</li>
+      </ul>
+    </div>`;
+  app.querySelectorAll(".sign").forEach(button => button.onclick = () => {
+    if (button.dataset.mode === "map") showMap(100); else showSetup(button.dataset.mode);
+  });
+  document.getElementById("joinlink").onclick = () => showJoin("");
+}
+
+/* ================= setup ================= */
+function freshSetup(mode) {
+  const ai = n => ({ name: AI_NAMES[n], kind: "ai", level: "medium" });
+  let seats;
+  if (mode === "watch") seats = [ai(0), ai(1)];
+  else if (mode === "vs") seats = [{ name: "You", kind: "human" }, ai(0)];
+  else seats = [{ name: "Player 1", kind: "human" }, { name: "Player 2", kind: "human" }];
+  return { mode, target: 100, phones: false, seats, error: "" };
+}
+
+function nextAiName() {
+  const used = setup.seats.map(s => s.name);
+  return AI_NAMES.find(n => !used.includes(n)) || "AI " + (setup.seats.length + 1);
+}
+
+function showSetup(mode) {
+  stopPolling();
+  if (!setup || setup.mode !== mode) setup = freshSetup(mode);
+  const s = setup;
+  const seatLimit = s.seats.length >= MAX_SEATS;
+  const shown = s.phones ? s.seats.filter(seat => seat.kind === "ai") : s.seats;
+  const minSeats = s.phones ? 0 : 2;
+
+  const rows = shown.map(seat => {
+    const i = s.seats.indexOf(seat);
+    const locked = mode === "watch" || s.phones || (mode === "vs");
+    const kindCell = locked
+      ? `<span>${seat.kind === "ai" ? "AI" : "Human"}</span>`
+      : `<select data-i="${i}" data-f="kind" aria-label="Player type">
+           <option value="human" ${seat.kind === "human" ? "selected" : ""}>Human</option>
+           <option value="ai" ${seat.kind === "ai" ? "selected" : ""}>AI</option></select>`;
+    const levelCell = seat.kind === "ai"
+      ? `<select data-i="${i}" data-f="level" aria-label="AI difficulty">${Object.keys(LEVEL_LABEL).map(l =>
+          `<option value="${l}" ${seat.level === l ? "selected" : ""}>${LEVEL_LABEL[l]}</option>`).join("")}</select>`
+      : `<span></span>`;
+    const fixed = mode === "vs" && i === 0;
+    const removable = !fixed && s.seats.length > minSeats && !(mode === "vs" && s.seats.length <= 2);
+    return `<div class="seatrow">
+      <span class="num">${shown.indexOf(seat) + 1}</span>
+      <input type="text" maxlength="16" value="${esc(seat.name)}" data-i="${i}" data-f="name" aria-label="Player name">
+      ${kindCell}${levelCell}
+      ${removable ? `<button class="x" data-remove="${i}" aria-label="Remove ${esc(seat.name)}">✕</button>` : `<span></span>`}
+    </div>`;
+  }).join("");
+
+  const addLabel = mode === "party" && !s.phones ? "Add a player" : "Add an AI";
+  const levelNote = `Difficulty is how many simulated games the AI plays before each decision:
+    easy ${info.levels.easy}, medium ${info.levels.medium.toLocaleString()}, hard ${info.levels.hard.toLocaleString()}.`;
+
+  app.innerHTML = `
+    <div class="topbar"><button class="back" id="back">Back</button><h2>${MODE_TITLE[mode]}</h2></div>
+    <div class="panel">
+      ${s.error ? `<p class="error" role="alert">${esc(s.error)}</p>` : ""}
+      ${mode === "party" ? `<div class="field"><span class="label">Where does everyone play?</span>
+        <div class="choices">
+          <button class="choice" data-phones="0" aria-pressed="${!s.phones}">On this screen, passing it around</button>
+          <button class="choice" data-phones="1" aria-pressed="${s.phones}">On their own phones</button>
+        </div></div>` : ""}
+      <div class="field"><span class="label">Play to</span>
+        <div class="choices">${[30, 50, 100].map(t =>
+          `<button class="choice" data-target="${t}" aria-pressed="${s.target === t}">${t} points</button>`).join("")}</div>
+      </div>
+      <div class="field"><span class="label">${s.phones ? "AI players at the table" : "Players"}</span>
+        ${rows || `<p class="note">No AI players. Add one if you want the computer at the table.</p>`}
+        <button class="btn small plain" id="add" ${seatLimit ? "disabled" : ""}>${addLabel}</button>
+        ${seatLimit ? `<span class="note"> The table is full at ${MAX_SEATS}.</span>` : ""}
+      </div>
+      <p class="note">${s.phones ? "People join from their phones on the next screen. " : ""}${shown.some(x => x.kind === "ai") ? levelNote : ""}</p>
+      <p style="margin:20px 0 0"><button class="btn go" id="begin">${s.phones ? "Open the table" : "Start the game"}</button></p>
+    </div>`;
+
+  document.getElementById("back").onclick = showHome;
+  app.querySelectorAll("[data-target]").forEach(b => b.onclick = () => { s.target = +b.dataset.target; showSetup(mode); });
+  app.querySelectorAll("[data-phones]").forEach(b => b.onclick = () => { s.phones = b.dataset.phones === "1"; s.error = ""; showSetup(mode); });
+  app.querySelectorAll("[data-f]").forEach(el => el.onchange = () => {
+    const seat = s.seats[+el.dataset.i];
+    seat[el.dataset.f] = el.value;
+    if (el.dataset.f === "kind") {
+      if (seat.kind === "ai") { seat.level = seat.level || "medium"; seat.name = nextAiName(); }
+      else seat.name = "Player " + (+el.dataset.i + 1);
+      showSetup(mode);
+    }
+  });
+  app.querySelectorAll("[data-remove]").forEach(b => b.onclick = () => { s.seats.splice(+b.dataset.remove, 1); showSetup(mode); });
+  document.getElementById("add").onclick = () => {
+    if (mode === "party" && !s.phones) s.seats.push({ name: "Player " + (s.seats.length + 1), kind: "human" });
+    else s.seats.push({ name: nextAiName(), kind: "ai", level: "medium" });
+    showSetup(mode);
+  };
+  document.getElementById("begin").onclick = async () => {
+    try {
+      const game = await api("/api/new", { mode, target: s.target, phones: s.phones, seats: s.seats });
+      s.error = "";
+      session = { id: game.id, token: null, seat: null, host: true };
+      if (game.phones) showLobby(game); else showGame(game);
+    } catch (e) { s.error = e.message; showSetup(mode); }
+  };
+}
+
+/* ================= phone lobby (host screen) ================= */
+function showLobby(game) {
+  stopPolling();
+  // which address phones should open: a tunnel address if there is one, otherwise the laptop's network address
+  const onLaptop = ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname);
+  const viaNumbers = /^[\d.]+$/.test(location.hostname);
+  const joinBase = info.public || onLaptop ? info.join_url : location.origin;
+  const sameWifi = !info.public && (onLaptop || viaNumbers);
+  const joinLink = joinBase + "/?join=" + game.code;
+  app.innerHTML = `
+    <div class="topbar"><button class="back" id="back">Back</button><h2>Party play</h2></div>
+    <div class="panel" style="text-align:center">
+      <p style="margin:0;font-size:22px">${sameWifi ? "On your phone, join the same Wi-Fi as this computer and open" : "On your phone, open"}</p>
+      <p class="addr" style="margin:6px 0 14px">${esc(joinBase)}</p>
+      <p style="margin:0;font-size:22px">then enter this code</p>
+      <p class="code" style="margin:8px 0 14px">${esc(game.code)}</p>
+      <p style="margin:0 0 18px"><button class="btn small plain" id="copylink">Copy a join link to share</button></p>
+      <ul class="joined" id="joined" style="justify-content:center"></ul>
+      <p class="note" id="lobbynote" style="margin:0 auto 16px"></p>
+      <button class="btn go" id="startgame" disabled>Start the game</button>
+    </div>`;
+  document.getElementById("back").onclick = () => showSetup("party");
+  document.getElementById("copylink").onclick = async e => {
+    try { await navigator.clipboard.writeText(joinLink); e.target.textContent = "Join link copied"; }
+    catch (err) { e.target.textContent = joinLink; }
+  };
+  document.getElementById("startgame").onclick = async () => {
+    try { showGame(await api("/api/start", { id: session.id })); }
+    catch (e) { document.getElementById("lobbynote").textContent = e.message; }
+  };
+  const refresh = async () => {
+    let g;
+    try { g = await api("/api/state?id=" + session.id); } catch (e) { return; }
+    if (g.started) return showGame(g);
+    document.getElementById("joined").innerHTML = g.seats.map(s =>
+      `<li>${esc(s.name)}${s.kind === "ai" ? " (AI)" : ""}</li>`).join("");
+    const people = g.seats.filter(s => s.kind === "human").length;
+    document.getElementById("lobbynote").textContent = g.seats.length < 2
+      ? "Waiting for players. The game needs at least 2 at the table."
+      : `${people} ${people === 1 ? "person has" : "people have"} joined. Start when everyone is in.`;
+    document.getElementById("startgame").disabled = g.seats.length < 2;
+  };
+  refresh();
+  pollTimer = setInterval(refresh, 700);
+}
+
+/* ================= phone join ================= */
+function showJoin(code, error) {
+  stopPolling();
+  app.innerHTML = `
+    <div class="topbar"><button class="back" id="back">Back</button><h2>Join a party</h2></div>
+    <div class="panel">
+      ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ""}
+      <div class="field"><label for="jcode">Game code</label>
+        <input type="text" id="jcode" maxlength="4" value="${esc(code)}" autocapitalize="characters" autocomplete="off" style="max-width:9em;font-size:28px;letter-spacing:.12em;text-transform:uppercase"></div>
+      <div class="field"><label for="jname">Your name</label>
+        <input type="text" id="jname" maxlength="16" style="max-width:16em"></div>
+      <button class="btn go" id="joinbtn">Join the game</button>
+    </div>`;
+  document.getElementById("back").onclick = showHome;
+  document.getElementById("joinbtn").onclick = async () => {
+    const typed = document.getElementById("jcode").value.trim().toUpperCase();
+    try {
+      const joined = await api("/api/join", { code: typed, name: document.getElementById("jname").value });
+      session = { id: joined.id, token: joined.token, seat: joined.seat, host: false };
+      try { sessionStorage.setItem("pig-seat", JSON.stringify(session)); } catch (e) {}
+      showGame(await api("/api/state?id=" + joined.id));
+    } catch (e) { showJoin(typed, e.message); }
+  };
+}
+
+/* ================= game table ================= */
+function showGame(game) {
+  stopPolling();
+  lastEvent = game.last ? game.last.n : 0;
+  lastRound = game.round;
+  const hasAi = game.seats.some(s => s.kind === "ai");
+  app.innerHTML = `
+    <div class="topbar"><button class="back" id="back">Leave</button><h2>${MODE_TITLE[game.mode]}</h2></div>
+    <div class="panel winner" id="winner" hidden>
+      <h2 id="wintitle"></h2><p id="wintext"></p>
+      <div class="actions"><button class="btn go" id="again">Play again</button><button class="btn plain" id="home2">Back to the barn</button></div>
+    </div>
+    <div class="table">
+      <div class="chalkboard">
+        <h3><span>Scores</span><span>first to ${game.target}</span></h3>
+        <div id="scores"></div>
+        <ul class="loglist" id="log" aria-label="Recent moves"></ul>
+      </div>
+      <div class="panel stage">
+        <div class="turnname" id="turnname"></div>
+        <div class="status" id="status" aria-live="polite"></div>
+        <div class="dicerow">
+          <div class="die" id="die" role="img" aria-label="No roll yet">${"<i></i>".repeat(9)}</div>
+          <div class="pot"><div class="big" id="pot">0</div><div class="lbl">this turn</div></div>
+        </div>
+        <div class="actions" id="actions">
+          <button class="btn go" id="roll">Roll</button>
+          <button class="btn" id="hold">Hold</button>
+        </div>
+        <div class="waitmsg" id="waitmsg"></div>
+        <div class="think" id="think" ${hasAi ? "" : "hidden"}>
+          <h3 id="thinktitle">The AI's thinking</h3>
+          <div class="sub" id="thinksub"></div>
+          <div class="bar" id="barroll"><span class="name">Roll</span><div class="slot"><div class="fill"></div></div><span class="nums"></span></div>
+          <div class="bar" id="barhold"><span class="name">Hold</span><div class="slot"><div class="fill"></div></div><span class="nums"></span></div>
+        </div>
+        <div class="controls" id="controls" ${hasAi ? "" : "hidden"}>
+          <span class="label">AI speed</span>
+          ${Object.keys(SPEED_LABEL).map(k => `<button class="choice" data-speed="${k}">${SPEED_LABEL[k]}</button>`).join("")}
+          <button class="choice" id="pause" style="margin-left:auto">Pause</button>
+        </div>
+      </div>
+    </div>`;
+
+  document.getElementById("back").onclick = showHome;
+  document.getElementById("home2").onclick = showHome;
+  document.getElementById("again").onclick = () => api("/api/rematch", { id: session.id }).then(updateGame).catch(() => {});
+  document.getElementById("roll").onclick = () => act("roll");
+  document.getElementById("hold").onclick = () => act("hold");
+  app.querySelectorAll("[data-speed]").forEach(b => b.onclick = () =>
+    api("/api/control", { id: session.id, speed: b.dataset.speed }).then(updateGame).catch(() => {}));
+  document.getElementById("pause").onclick = e =>
+    api("/api/control", { id: session.id, paused: e.target.getAttribute("aria-pressed") !== "true" }).then(updateGame).catch(() => {});
+
+  updateGame(game);
+  pollTimer = setInterval(async () => {
+    try { updateGame(await api("/api/state?id=" + session.id)); }
+    catch (e) { const el = document.getElementById("status"); if (el) el.textContent = e.message; }
+  }, ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname) ? 180 : 350);   // gentler over a network or tunnel
+}
+
+async function act(action) {
+  try { updateGame(await api("/api/act", { id: session.id, action, token: session.token })); }
+  catch (e) { document.getElementById("waitmsg").textContent = e.message; }
+}
+
+const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+function drawDie(value, bust, animate) {
+  const die = document.getElementById("die");
+  [...die.children].forEach((pip, i) => pip.style.visibility = value && PIPS[value].includes(i) ? "visible" : "hidden");
+  die.classList.toggle("bust", !!bust);
+  die.setAttribute("aria-label", value ? "Rolled a " + value : "No roll yet");
+  if (animate) { die.classList.remove("tumble"); void die.offsetWidth; die.classList.add("tumble"); }
+}
+
+function describe(event, seats) {
+  const who = seats[event.seat] ? seats[event.seat].name : "Someone";
+  if (event.type === "roll") return `${who} rolled a ${event.value}`;
+  if (event.type === "bust") return `${who} rolled a 1 and lost the turn`;
+  return `${who} held and banked ${event.value}`;
+}
+
+function updateGame(g) {
+  if (!document.getElementById("scores")) return;
+  if (!g.started) {                                   // phone player waiting in the lobby
+    document.getElementById("turnname").textContent = "You're in";
+    document.getElementById("status").textContent = "Waiting for the host to start the game.";
+    document.getElementById("actions").hidden = true;
+    document.getElementById("scores").innerHTML = g.seats.map(s =>
+      `<div class="scorerow"><span class="mark">▸</span><span class="who">${esc(s.name)}</span><span class="pts">0</span></div>`).join("");
+    return;
+  }
+  if (g.round !== lastRound) { lastRound = g.round; lastEvent = 0; drawDie(null); }
+
+  const current = g.seats[g.current];
+  const over = g.winner !== null;
+
+  document.getElementById("scores").innerHTML = g.seats.map((s, i) => {
+    const banked = Math.min(100, g.scores[i] / g.target * 100);
+    const pending = i === g.current && !over ? Math.min(100 - banked, g.turn_total / g.target * 100) : 0;
+    const tag = s.kind === "ai" ? `<small>${LEVEL_LABEL[s.level]} AI</small>` : (session.seat === i ? `<small>you</small>` : "");
+    return `<div class="scorerow ${i === g.current && !over ? "turn" : ""} ${g.winner === i ? "won" : ""}">
+      <span class="mark">▸</span><span class="who">${esc(s.name)}${tag}</span><span class="pts">${g.scores[i]}</span>
+      <div class="track"><i style="width:${banked}%"></i><b style="left:${banked}%;width:${pending}%"></b></div></div>`;
+  }).join("");
+
+  document.getElementById("log").innerHTML = g.log.slice().reverse().slice(0, 6).map(e => `<li>${esc(describe(e, g.seats))}</li>`).join("");
+
+  if (g.last && g.last.n !== lastEvent) {
+    lastEvent = g.last.n;
+    if (g.last.type !== "hold") drawDie(g.last.value, g.last.type === "bust", true);
+  }
+  document.getElementById("pot").textContent = g.turn_total;
+  document.getElementById("turnname").textContent = over ? "Game over" : (current.name === "You" ? "Your turn" : current.name + "'s turn");
+  document.getElementById("status").textContent = g.last ? describe(g.last, g.seats) + "." : "First roll of the game.";
+
+  // who may press the buttons on this screen
+  const humanTurn = !over && current.kind === "human";
+  const mine = humanTurn && (g.phones ? session.seat === g.current : true);
+  const actions = document.getElementById("actions");
+  actions.hidden = over || !g.seats.some(s => s.kind === "human") || (g.phones && session.seat === null);
+  document.getElementById("roll").disabled = !mine || !g.options.includes("roll");
+  document.getElementById("hold").disabled = !mine || !g.options.includes("hold");
+  let wait = "";
+  if (!over) {
+    if (mine && g.options.length === 1 && g.options[0] === "hold") wait = "That's enough to win. Hold to take it.";
+    else if (mine && g.mode === "party" && !g.phones) wait = `Pass the screen to ${current.name}.`;
+    else if (humanTurn && !mine) wait = `Waiting for ${current.name}.`;
+    else if (!humanTurn && !actions.hidden) wait = `${current.name} is playing.`;
+  }
+  document.getElementById("waitmsg").textContent = wait;
+
+  // the AI's thinking
+  const t = g.thinking;
+  const sub = document.getElementById("thinksub");
+  const setBar = (id, stats, total, picked) => {
+    const bar = document.getElementById(id);
+    const share = stats && total ? stats.visits / total * 100 : 0;
+    bar.querySelector(".fill").style.width = share + "%";
+    bar.classList.toggle("picked", !!picked);
+    bar.querySelector(".nums").textContent = stats && stats.visits
+      ? `wins ${Math.round(stats.wins / stats.visits * 100)}% of ${stats.visits.toLocaleString()} tries` : "";
+  };
+  if (t && g.seats[t.seat]) {
+    document.getElementById("thinktitle").textContent = g.seats[t.seat].name + "'s thinking";
+    if (t.forced) {
+      sub.textContent = t.choice === "roll" ? "Nothing to bank yet, so it has to roll." : "It has enough to win, so it holds.";
+      setBar("barroll", null, 0, t.choice === "roll"); setBar("barhold", null, 0, t.choice === "hold");
+    } else {
+      const total = t.roll.visits + t.hold.visits;
+      sub.textContent = t.choice
+        ? `Played out ${total.toLocaleString()} games from here and chose to ${t.choice}.`
+        : `Playing out games from here: ${t.done.toLocaleString()} of ${t.total.toLocaleString()}`;
+      setBar("barroll", t.roll, total, t.choice === "roll"); setBar("barhold", t.hold, total, t.choice === "hold");
+    }
+  } else {
+    document.getElementById("thinktitle").textContent = "The AI's thinking";
+    sub.textContent = "Bars show how often it tried each move, and how often that move won.";
+    setBar("barroll", null, 0); setBar("barhold", null, 0);
+  }
+
+  app.querySelectorAll("[data-speed]").forEach(b => b.setAttribute("aria-pressed", b.dataset.speed === g.speed));
+  const pause = document.getElementById("pause");
+  pause.setAttribute("aria-pressed", g.paused);
+  pause.textContent = g.paused ? "Resume" : "Pause";
+
+  const banner = document.getElementById("winner");
+  banner.hidden = !over;
+  if (over) {
+    document.getElementById("wintitle").textContent = g.seats[g.winner].name + " wins";
+    const others = g.scores.filter((_, i) => i !== g.winner);
+    document.getElementById("wintext").textContent =
+      `${g.scores[g.winner]} points. Next closest had ${Math.max(...others)}.`;
+    document.getElementById("again").hidden = g.phones && !session.host;
+  }
+}
+
+/* ================= strategy map ================= */
+// one hue, light to dark: a low hold point is pale, a high one is deep barn red
+function rampColor(t) {
+  const stops = [[250, 232, 214], [236, 178, 140], [205, 108, 78], [150, 50, 38], [86, 22, 18]];
+  const x = Math.max(0, Math.min(1, t)) * (stops.length - 1);
+  const i = Math.min(stops.length - 2, Math.floor(x)), f = x - i;
+  const c = stops[i].map((v, k) => Math.round(v + (stops[i + 1][k] - v) * f));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+const NEVER = "#3f4a52";       // "keep rolling until you win" gets its own neutral colour
+
+async function showMap(target) {
+  stopPolling();
+  app.innerHTML = `
+    <div class="topbar"><button class="back" id="back">Back</button><h2>Strategy map</h2></div>
+    <div class="panel">
+      <p class="takeaway" id="takeaway">Loading the map.</p>
+      <div class="field" style="margin-bottom:6px"><span class="label">Game played to</span>
+        <div class="choices">${[30, 50, 100].map(t =>
+          `<button class="choice" data-target="${t}" aria-pressed="${t === target}">${t} points</button>`).join("")}</div></div>
+      <div class="legend">
+        <span>Hold once your turn total reaches</span>
+        <span id="lo"></span><span class="ramp" id="ramp"></span><span id="hi"></span>
+        <span><span class="swatch" style="background:${NEVER}"></span>never hold, roll until you win</span>
+      </div>
+    </div>
+    <div class="maps" style="margin-top:22px">
+      <div class="panel mapcard" style="margin-top:0"><h3>Exact best play</h3>
+        <p class="sub" id="subexact">Worked out by solving the game directly, with no simulation.</p>
+        <div class="plot"><span class="ylab">Your score</span><canvas id="cexact" width="600" height="600"></canvas>
+          <div class="ticks"><span>0</span><span>${target / 2}</span><span>${target}</span></div><span class="xlab">Opponent's score</span></div></div>
+      <div class="panel mapcard" style="margin-top:0"><h3>What the tree search learned</h3>
+        <p class="sub" id="submcts"></p>
+        <div class="plot"><span class="ylab">Your score</span><canvas id="cmcts" width="600" height="600"></canvas>
+          <div class="ticks"><span>0</span><span>${target / 2}</span><span>${target}</span></div><span class="xlab">Opponent's score</span></div></div>
+    </div>`;
+  document.getElementById("back").onclick = showHome;
+  app.querySelectorAll("[data-target]").forEach(b => b.onclick = () => showMap(+b.dataset.target));
+
+  let data;
+  try { data = await api("/api/heatmap?target=" + target); }
+  catch (e) { document.getElementById("takeaway").textContent = e.message; return; }
+  if (!document.getElementById("cexact")) return;
+
+  // one colour scale shared by both maps, set by the exact answer's range;
+  // tree-search values outside it are drawn at the nearest end of the scale
+  const holds = [];
+  const scaleFrom = data.exact || data.mcts;
+  if (scaleFrom) scaleFrom.grid.forEach((row, r) => row.forEach(v => { if (v < target - r * scaleFrom.step) holds.push(v); }));
+  const lo = holds.length ? Math.min(...holds) : 1, hi = holds.length ? Math.max(...holds) : target;
+  document.getElementById("lo").textContent = lo;
+  document.getElementById("hi").textContent = hi + (data.exact && data.mcts ? " or more" : "");
+  document.getElementById("ramp").style.background =
+    `linear-gradient(90deg, ${[0, .25, .5, .75, 1].map(rampColor).join(",")})`;
+
+  const first = data.exact && data.exact.first_player_wins ? Math.round(data.exact.first_player_wins * 1000) / 10 : null;
+  const start = data.exact ? data.exact.grid[0][0] : null;
+  document.getElementById("takeaway").textContent = data.exact
+    ? (start >= target
+        ? `Playing to ${target}, the best opening is to never hold: keep rolling until you win or bust. `
+        : `Playing to ${target}, the best opening is to hold once your turn total reaches ${start}. `)
+      + `The hold point then shifts with both scores. With best play, whoever goes first wins ${first}% of games.`
+    : "No exact solution has been saved yet. Run solve_exact.py to create it.";
+
+  drawMap("cexact", data.exact, target, lo, hi);
+  drawMap("cmcts", data.mcts, target, lo, hi);
+  document.getElementById("submcts").textContent = data.mcts
+    ? `Built by pig.py: ${data.mcts.sims.toLocaleString()} simulated games per decision, sampled every ${data.mcts.step} points. Patchiness is the search's own noise.`
+    : "Not built yet for this target. Run build_heatmap.py to create it.";
+}
+
+function drawMap(id, d, target, lo, hi) {
+  const canvas = document.getElementById(id);
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const tip = document.getElementById("tip");
+  if (!d) {
+    ctx.fillStyle = "#5d4a3a"; ctx.font = "26px Georgia"; ctx.textAlign = "center";
+    ctx.fillText("Nothing saved for this target yet", canvas.width / 2, canvas.height / 2);
+    canvas.onmousemove = canvas.onmouseleave = null;
+    return;
+  }
+  const n = d.grid.length, size = canvas.width / n, gap = n > 40 ? 0 : 2;
+  const isNever = (r, v) => v >= target - r * d.step;
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+    const v = d.grid[r][c];
+    ctx.fillStyle = isNever(r, v) ? NEVER : rampColor(hi > lo ? (v - lo) / (hi - lo) : .5);
+    // your score runs up the page, so row 0 is drawn at the bottom
+    ctx.fillRect(c * size, canvas.height - (r + 1) * size, size - gap, size - gap);
+  }
+  canvas.onmousemove = e => {
+    const box = canvas.getBoundingClientRect();
+    const c = Math.min(n - 1, Math.max(0, Math.floor((e.clientX - box.left) / box.width * n)));
+    const r = Math.min(n - 1, Math.max(0, n - 1 - Math.floor((e.clientY - box.top) / box.height * n)));
+    const v = d.grid[r][c];
+    tip.innerHTML = `You have <b>${r * d.step}</b>, opponent has <b>${c * d.step}</b><br>` +
+      (isNever(r, v) ? "Never hold: roll until you win" : `Hold once this turn reaches <b>${v}</b>`);
+    tip.hidden = false;
+    const left = Math.min(window.innerWidth - tip.offsetWidth - 8, e.clientX + 14);
+    tip.style.left = left + "px";
+    tip.style.top = (e.clientY + 16) + "px";
+  };
+  canvas.onmouseleave = () => { tip.hidden = true; };
+}
+
+/* ================= start ================= */
+(async function () {
+  try { info = Object.assign(info, await api("/api/info")); } catch (e) {}
+  const join = new URLSearchParams(location.search).get("join");
+  if (join) return showJoin(join.toUpperCase());
+  try {
+    const saved = JSON.parse(sessionStorage.getItem("pig-seat") || "null");
+    if (saved) {
+      const game = await api("/api/state?id=" + saved.id);
+      if (game.winner === null) { session = saved; return showGame(game); }
+    }
+  } catch (e) { try { sessionStorage.removeItem("pig-seat"); } catch (e2) {} }
+  showHome();
+})();
+</script>
+</body>
+</html>
