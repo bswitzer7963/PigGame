@@ -7,7 +7,7 @@
 ---
 
 ## How To Play
-- Visit our official site: 
+- Visit our [Official Site](https://pig-u3vt.onrender.com/).
 
 - Each player will have a turn and it will move to the next after one player's turn is up.
 
